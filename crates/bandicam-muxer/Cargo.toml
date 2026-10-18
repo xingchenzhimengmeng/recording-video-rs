@@ -1,0 +1,8 @@
+[package]
+name = "bandicam-muxer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bandicam-common = { path = "../bandicam-common" }
+anyhow = "1.0"

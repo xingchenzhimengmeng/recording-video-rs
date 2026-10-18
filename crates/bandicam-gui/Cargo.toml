@@ -1,0 +1,18 @@
+[package]
+name = "bandicam-gui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bandicam-common = { path = "../bandicam-common" }
+bandicam-capture = { path = "../bandicam-capture" }
+bandicam-audio = { path = "../bandicam-audio" }
+bandicam-muxer = { path = "../bandicam-muxer" }
+windows = { version = "0.58", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell", "Win32_System_Com", "Win32_UI_Input_KeyboardAndMouse"] }
+slint = "1.9"
+crossbeam-channel = "0.5"
+anyhow = "1.0"
+chrono = "0.4"
+
+[build-dependencies]
+slint-build = "1.9"

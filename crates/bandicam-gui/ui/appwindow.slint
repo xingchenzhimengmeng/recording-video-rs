@@ -1,0 +1,540 @@
+import { Button, CheckBox, ComboBox } from "std-widgets.slint";
+
+export component MainWindow inherits Window {
+    title: "Bandicam-RS - 60 FPS 现代化桌面屏幕录制专家";
+    preferred-width: 820px;
+    preferred-height: 720px;
+    min-width: 780px;
+    min-height: 680px;
+    background: #090d16;
+
+    in-out property <bool> is_recording: false;
+    in-out property <bool> is_paused: false;
+    in-out property <string> time_display: "00:00:00";
+    in-out property <string> status_text: "就绪 (按 F12 键即可随时开始录屏)";
+    in-out property <string> fps_text: "60.0 FPS";
+    in-out property <string> size_text: "0.0 MB";
+    in-out property <string> frames_text: "0 帧";
+    in-out property <string> output_dir_text: "recordings";
+    in-out property <string> resolution_text: "检测中...";
+    in-out property <string> last_saved_file: "";
+
+    // 录制模式: 0: 全屏, 1: 自选区域, 2: 指定窗口
+    in-out property <int> selected_mode: 0;
+
+    // 音频源配置
+    in-out property <bool> capture_speaker: true;
+    in-out property <string> speaker_device_name: "默认系统扬声器 / 耳机";
+
+    // 区域与窗口参数状态
+    in-out property <string> region_info_text: "1920 x 1080 @ (0, 0)";
+    in-out property <string> target_window_title: "尚未选定目标窗口 (点击刷新加载)";
+    in-out property <string> target_window_geometry: "0x0 @ (0, 0)";
+
+    // 交互回调
+    callback toggle_record();
+    callback toggle_pause();
+    callback choose_output_dir();
+    callback open_output_dir();
+    callback play_last_recording();
+    callback reveal_last_recording();
+    callback set_region_preset(int);
+    callback refresh_windows();
+    callback select_next_window();
+    callback activate_target_window();
+    callback center_target_window(int);
+    callback move_target_window(int, int);
+    callback delta_resize_target_window(int, int);
+    callback resize_target_window(int);
+    callback cycle_speaker_device();
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 14px;
+
+        // 1. 顶部 Header 品牌与热键指示栏
+        HorizontalLayout {
+            height: 42px;
+            spacing: 12px;
+            alignment: center;
+
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: center;
+                Text {
+                    text: "BANDICAM";
+                    font-size: 24px;
+                    font-weight: 900;
+                    color: #ef4444;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: "-RS";
+                    font-size: 22px;
+                    font-weight: 900;
+                    color: #e2e8f0;
+                    vertical-alignment: center;
+                }
+                Rectangle { width: 4px; }
+                Rectangle {
+                    background: #1e293b;
+                    border-radius: 4px;
+                                    Text {
+                        text: "60 FPS PRO";
+                        font-size: 11px;
+                        font-weight: 800;
+                        color: #38bdf8;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+
+            // 全局热键徽章
+            Rectangle {
+                background: #162032;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: #2b3952;
+                                                height: 32px;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+                    Text {
+                        text: "⌨️ 全局热键: F12 录制/停止 | F11 暂停/恢复";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #94a3b8;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // 2. 模式选择分段控件
+        Rectangle {
+            background: #111827;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #1f293d;
+            height: 52px;
+
+            HorizontalLayout {
+                padding: 6px;
+                spacing: 8px;
+
+                Button {
+                    text: "🖥️ 全屏录制 (" + root.resolution_text + ")";
+                    primary: root.selected_mode == 0;
+                    horizontal-stretch: 1;
+                    clicked => { root.selected_mode = 0; }
+                }
+                Button {
+                    text: "📐 矩形区域选区";
+                    primary: root.selected_mode == 1;
+                    horizontal-stretch: 1;
+                    clicked => { root.selected_mode = 1; }
+                }
+                Button {
+                    text: "🪟 指定活动窗口录制";
+                    primary: root.selected_mode == 2;
+                    horizontal-stretch: 1;
+                    clicked => { root.selected_mode = 2; }
+                }
+            }
+        }
+
+        // 3. 动态模式配置面板
+        if root.selected_mode == 1: Rectangle {
+            background: #151d2f;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #273752;
+            height: 48px;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 10px;
+                alignment: center;
+
+                Text {
+                    text: "当前选区: " + root.region_info_text;
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #38bdf8;
+                    vertical-alignment: center;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Button {
+                    text: "1080P (1920x1080)";
+                    clicked => { root.set_region_preset(0); }
+                }
+                Button {
+                    text: "720P (1280x720)";
+                    clicked => { root.set_region_preset(1); }
+                }
+                Button {
+                    text: "480P (854x480)";
+                    clicked => { root.set_region_preset(2); }
+                }
+            }
+        }
+
+        if root.selected_mode == 2: Rectangle {
+            background: #151d2f;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #273752;
+        
+            VerticalLayout {
+                spacing: 10px;
+
+                // 窗口信息与主切换
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: center;
+
+                    Text {
+                        text: "目标窗口: " + root.target_window_title;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #f8fafc;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "[" + root.target_window_geometry + "]";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #38bdf8;
+                        vertical-alignment: center;
+                    }
+                    Button {
+                        text: "🔄 刷新列表";
+                        clicked => { root.refresh_windows(); }
+                    }
+                    Button {
+                        text: "🔀 切换下一个窗口";
+                        clicked => { root.select_next_window(); }
+                    }
+                    Button {
+                        text: "⬆ 前置窗口";
+                        clicked => { root.activate_target_window(); }
+                    }
+                }
+
+                // 窗口位置与尺寸精密微调控制栏
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    Text {
+                        text: "位置调整:";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #94a3b8;
+                        vertical-alignment: center;
+                    }
+                    Button {
+                        text: "屏幕居中";
+                        clicked => { root.center_target_window(0); }
+                    }
+                    Button {
+                        text: "X-20";
+                        clicked => { root.move_target_window(-20, 0); }
+                    }
+                    Button {
+                        text: "X+20";
+                        clicked => { root.move_target_window(20, 0); }
+                    }
+                    Button {
+                        text: "Y-20";
+                        clicked => { root.move_target_window(0, -20); }
+                    }
+                    Button {
+                        text: "Y+20";
+                        clicked => { root.move_target_window(0, 20); }
+                    }
+
+                    Rectangle { width: 10px; }
+
+                    Text {
+                        text: "尺寸控制:";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: #94a3b8;
+                        vertical-alignment: center;
+                    }
+                    Button {
+                        text: "设为 1080P";
+                        clicked => { root.resize_target_window(0); }
+                    }
+                    Button {
+                        text: "设为 720P";
+                        clicked => { root.resize_target_window(1); }
+                    }
+                    Button {
+                        text: "宽+50";
+                        clicked => { root.delta_resize_target_window(50, 0); }
+                    }
+                    Button {
+                        text: "宽-50";
+                        clicked => { root.delta_resize_target_window(-50, 0); }
+                    }
+                    Button {
+                        text: "高+50";
+                        clicked => { root.delta_resize_target_window(0, 50); }
+                    }
+                    Button {
+                        text: "高-50";
+                        clicked => { root.delta_resize_target_window(0, -50); }
+                    }
+                }
+            }
+        }
+
+        // 4. 音频输入通道卡片 (可选择扬声器/耳机、麦克风)
+        Rectangle {
+            background: #111827;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #1f293d;
+        
+            VerticalLayout {
+                spacing: 8px;
+
+                // 扬声器通道
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: center;
+
+                    CheckBox {
+                        text: "🔊 系统声音 (扬声器 / 耳机内录):";
+                        checked <=> root.capture_speaker;
+                    }
+
+                    Text {
+                        text: root.speaker_device_name;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: root.capture_speaker ? #38bdf8 : #64748b;
+                        overflow: elide;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                    }
+
+                    Button {
+                        text: "切换输出设备";
+                        height: 28px;
+                        clicked => { root.cycle_speaker_device(); }
+                    }
+                }
+
+
+            }
+        }
+
+        // 5. 存储位置与输出配置卡片
+        Rectangle {
+            background: #111827;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #1f293d;
+            height: 48px;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 14px;
+                spacing: 10px;
+                alignment: center;
+
+                Text {
+                    text: "📂 保存目录: " + root.output_dir_text;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: #cbd5e1;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+                Button {
+                    text: "更改保存目录";
+                    height: 32px;
+                    clicked => { root.choose_output_dir(); }
+                }
+                Button {
+                    text: "打开目录";
+                    height: 32px;
+                    clicked => { root.open_output_dir(); }
+                }
+            }
+        }
+
+        // 6. 核心录制监视仪表盘 (时钟、状态波形、FPS与指标)
+        Rectangle {
+            background: #060911;
+            border-radius: 12px;
+            border-width: 2px;
+            border-color: root.is_recording ? (root.is_paused ? #eab308 : #ef4444) : #1e293b;
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 12px;
+                padding: 16px;
+
+                // 状态指示
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    Rectangle {
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 5px;
+                        background: root.is_recording ? (root.is_paused ? #eab308 : #ef4444) : #10b981;
+                    }
+                    Text {
+                        text: root.is_recording ? (root.is_paused ? "录制已暂停 (按 F11 键继续录制)" : "60 FPS 硬件直录中 (按 F12 键保存视频)") : root.status_text;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.is_recording ? (root.is_paused ? #fef08a : #fca5a5) : #cbd5e1;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // 巨型高科技等宽计时器
+                Text {
+                    text: root.time_display;
+                    font-size: 56px;
+                    font-weight: 900;
+                    color: root.is_recording ? #ef4444 : #f8fafc;
+                    horizontal-alignment: center;
+                }
+
+                // 实时性能仪表徽章 (FPS、体积、帧数)
+                HorizontalLayout {
+                    spacing: 20px;
+                    alignment: center;
+
+                    Rectangle {
+                        background: #111827;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #1f293d;
+                                            width: 170px;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            Text {
+                                text: "⚡ 实时帧率: " + root.fps_text;
+                                font-size: 13px;
+                                font-weight: 800;
+                                color: #10b981;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        background: #111827;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #1f293d;
+                                            width: 170px;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            Text {
+                                text: "💾 视频体积: " + root.size_text;
+                                font-size: 13px;
+                                font-weight: 800;
+                                color: #38bdf8;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        background: #111827;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: #1f293d;
+                                            width: 170px;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            Text {
+                                text: "🎬 捕获帧数: " + root.frames_text;
+                                font-size: 13px;
+                                font-weight: 800;
+                                color: #a855f7;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // 上次录制完成卡片 (若有)
+                if root.last_saved_file != "": Rectangle {
+                    background: #132034;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: #1e3a8a;
+                                    height: 38px;
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: center;
+
+                        Text {
+                            text: "🎉 最近录制: " + root.last_saved_file;
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: #60a5fa;
+                            overflow: elide;
+                            horizontal-stretch: 1;
+                            vertical-alignment: center;
+                        }
+                        Button {
+                            text: "▶ 立即播放";
+                            height: 24px;
+                            clicked => { root.play_last_recording(); }
+                        }
+                        Button {
+                            text: "📂 定位文件";
+                            height: 24px;
+                            clicked => { root.reveal_last_recording(); }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7. 底部主控操作区 (REC 录制按钮 + 暂停按钮)
+        HorizontalLayout {
+            spacing: 16px;
+            height: 58px;
+
+            if root.is_recording: Button {
+                text: root.is_paused ? "▶ 继续录制 (F11)" : "⏸ 暂停录制 (F11)";
+                width: 190px;
+                clicked => { root.toggle_pause(); }
+            }
+
+            Button {
+                text: root.is_recording ? "⏹ 停止录制并保存 MP4 (F12)" : "🔴 开始录制 (REC / F12)";
+                primary: !root.is_recording;
+                horizontal-stretch: 1;
+                clicked => { root.toggle_record(); }
+            }
+        }
+    }
+}

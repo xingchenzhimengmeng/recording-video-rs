@@ -1,0 +1,33 @@
+[workspace]
+members = [
+    "crates/bandicam-common",
+    "crates/bandicam-capture",
+    "crates/bandicam-audio",
+    "crates/bandicam-muxer",
+    "crates/bandicam-gui",
+]
+
+[package]
+name = "bandicam-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bandicam-common = { path = "crates/bandicam-common" }
+bandicam-capture = { path = "crates/bandicam-capture" }
+bandicam-audio = { path = "crates/bandicam-audio" }
+bandicam-muxer = { path = "crates/bandicam-muxer" }
+bandicam-gui = { path = "crates/bandicam-gui" }
+anyhow = "1.0"
+
+[dev-dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+] }
+
+[[bin]]
+name = "bandicam-rs"
+path = "src/main.rs"
